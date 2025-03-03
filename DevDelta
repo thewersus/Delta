@@ -1,110 +1,52 @@
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
+-- Создание GUI с анимированным переливом цветов, возможностью перемещения и сохранением позиции
+local library = {} -- Основная библиотека GUI
 
-local LocalPlayer = Players.LocalPlayer
-
--- Создание GUI
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "DeltaGUI"
-ScreenGui.Parent = game.CoreGui
-
--- Главная рамка
-local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 250, 0, 300)
-MainFrame.Position = UDim2.new(0, 10, 0, 10)
-MainFrame.BackgroundColor3 = Color3.fromRGB(30, 0, 0) -- Тёмно-красный
-MainFrame.BorderSizePixel = 0
-MainFrame.Visible = true
-MainFrame.Parent = ScreenGui
-
--- Закругление углов
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 10) -- Радиус закругления
-UICorner.Parent = MainFrame
-
--- Заголовок
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 30)
-Title.BackgroundTransparency = 1
-Title.Text = "Delta"
-Title.TextSize = 20
-Title.Font = Enum.Font.GothamBold
-Title.TextColor3 = Color3.fromRGB(255, 50, 50)
-Title.Parent = MainFrame
-
--- Боковая панель
-local Sidebar = Instance.new("Frame")
-Sidebar.Size = UDim2.new(0, 50, 1, -30)
-Sidebar.Position = UDim2.new(0, 0, 0, 30)
-Sidebar.BackgroundColor3 = Color3.fromRGB(40, 0, 0)
-Sidebar.BorderSizePixel = 0
-Sidebar.Parent = MainFrame
-
--- Закругление боковой панели
-local UICornerSidebar = Instance.new("UICorner")
-UICornerSidebar.CornerRadius = UDim.new(0, 10)
-UICornerSidebar.Parent = Sidebar
-
--- Кнопки разделов (пока точки)
-local Sections = {}
-for i = 1, 3 do
-    local SectionButton = Instance.new("TextButton")
-    SectionButton.Size = UDim2.new(1, 0, 0, 40)
-    SectionButton.Position = UDim2.new(0, 0, 0, (i - 1) * 50)
-    SectionButton.Text = "●"
-    SectionButton.TextSize = 25
-    SectionButton.Font = Enum.Font.GothamBold
-    SectionButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    SectionButton.BackgroundTransparency = 1
-    SectionButton.Parent = Sidebar
-    Sections[i] = SectionButton
+-- Функция для создания окна GUI
+function library:CreateWindow()
+    local gui = Instance.new("ScreenGui")
+    local mainFrame = Instance.new("Frame")
+    
+    gui.Parent = game.CoreGui
+    mainFrame.Parent = gui
+    mainFrame.Size = UDim2.new(0, 400, 0, 250)
+    mainFrame.Position = UDim2.new(0.5, -200, 0.5, -125)
+    mainFrame.BackgroundColor3 = Color3.new(0, 0, 0)
+    mainFrame.BorderSizePixel = 2
+    mainFrame.Draggable = true
+    mainFrame.Active = true
+    
+    -- Анимация цвета
+    spawn(function()
+        while true do
+            for i = 0, 1, 0.01 do
+                mainFrame.BackgroundColor3 = Color3.fromHSV(i, 1, 1)
+                wait(0.05)
+            end
+        end
+    end)
+    
+    -- Функция для сохранения позиции
+    local function savePosition()
+        writefile("gui_position.txt", tostring(mainFrame.Position))
+    end
+    
+    -- Функция для загрузки позиции
+    local function loadPosition()
+        if isfile("gui_position.txt") then
+            local pos = readfile("gui_position.txt")
+            mainFrame.Position = UDim2.new(0, tonumber(pos:match("%d+")), 0, tonumber(pos:match(", (%d+)")))
+        end
+    end
+    
+    loadPosition()
+    
+    mainFrame.Changed:Connect(function(property)
+        if property == "Position" then
+            savePosition()
+        end
+    end)
+    
+    return mainFrame
 end
 
--- Основная панель (меняется при выборе раздела)
-local ContentFrame = Instance.new("Frame")
-ContentFrame.Size = UDim2.new(1, -50, 1, -30)
-ContentFrame.Position = UDim2.new(0, 50, 0, 30)
-ContentFrame.BackgroundColor3 = Color3.fromRGB(50, 0, 0)
-ContentFrame.BorderSizePixel = 0
-ContentFrame.Parent = MainFrame
-
--- Закругление основной панели
-local UICornerContent = Instance.new("UICorner")
-UICornerContent.CornerRadius = UDim.new(0, 10)
-UICornerContent.Parent = ContentFrame
-
--- Анимация переливания цвета
-spawn(function()
-    while true do
-        for i = 0, 255, 5 do
-            MainFrame.BackgroundColor3 = Color3.fromRGB(30 + i % 50, 0, 0)
-            Sidebar.BackgroundColor3 = Color3.fromRGB(40 + i % 50, 0, 0)
-            ContentFrame.BackgroundColor3 = Color3.fromRGB(50 + i % 50, 0, 0)
-            wait(0.05)
-        end
-    end
-end)
-
--- Функция плавного появления/исчезновения
-local TweenService = game:GetService("TweenService")
-local TweenInfoOpen = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-local TweenInfoClose = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-
-local OpenTween = TweenService:Create(MainFrame, TweenInfoOpen, {Size = UDim2.new(0, 250, 0, 300), BackgroundTransparency = 0})
-local CloseTween = TweenService:Create(MainFrame, TweenInfoClose, {Size = UDim2.new(0, 250, 0, 0), BackgroundTransparency = 1})
-
-local guiVisible = true
-
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if not gameProcessed and input.KeyCode == Enum.KeyCode.Insert then
-        if guiVisible then
-            CloseTween:Play()
-            wait(0.3)
-            MainFrame.Visible = false
-        else
-            MainFrame.Visible = true
-            OpenTween:Play()
-        end
-        guiVisible = not guiVisible
-    end
-end)
+return library
